@@ -195,16 +195,32 @@ export function fakeModel(...answers: FakeAnswer[]): FakeModel {
 }
 
 /**
- * A provider's HTTP error, as `@ai-sdk/*` providers throw it: retryable for 408, 409, 429 and 5xx. `retryAfter` (in
- * seconds) is sent as a `retry-after` header.
+ * A provider's HTTP error, as `@ai-sdk/*` providers throw it: retryable for 408, 409, 429 and 5xx.
+ * `retryAfter` (in seconds) is sent as `retry-after`; explicit `responseHeaders` are layered over it, taking
+ * precedence for a header with the same name.
  */
-export function providerError(status: number, { message, retryAfter }: { message?: string; retryAfter?: number } = {}): APICallError {
+export function providerError(
+  status: number,
+  {
+    message,
+    retryAfter,
+    responseHeaders,
+  }: {
+    message?: string;
+    retryAfter?: number;
+    responseHeaders?: Record<string, string>;
+  } = {},
+): APICallError {
+  const headers = {
+    ...(retryAfter !== undefined && { 'retry-after': String(retryAfter) }),
+    ...responseHeaders,
+  };
   return new APICallError({
     message: message ?? `The provider answered ${status}`,
     url: 'https://fake-provider.test/v1/messages',
     requestBodyValues: {},
     statusCode: status,
-    ...(retryAfter !== undefined && { responseHeaders: { 'retry-after': String(retryAfter) } }),
+    ...(Object.keys(headers).length > 0 && { responseHeaders: headers }),
   });
 }
 
